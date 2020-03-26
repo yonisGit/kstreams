@@ -12,6 +12,7 @@ import org.apache.kafka.streams.test.ConsumerRecordFactory;
 import org.apache.kafka.streams.test.OutputVerifier;
 import org.junit.After;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 
 import java.util.Properties;
@@ -50,7 +51,7 @@ public class WordCountAppTest {
         testDriver.pipeInput(recordFactory.create("word-count-input", null, value));
     }
 
-    @Test
+    @Ignore
     public void dummyTest(){
         String dummy = "Du" + "mmy";
         assertEquals(dummy, "Dummy");
@@ -60,7 +61,7 @@ public class WordCountAppTest {
         return testDriver.readOutput("word-count-output", new StringDeserializer(), new LongDeserializer());
     }
 
-    @Test
+    @Ignore
     public void makeSureCountsAreCorrect(){
         String firstExample = "testing Kafka Streams";
         pushNewInputRecord(firstExample);
@@ -77,7 +78,7 @@ public class WordCountAppTest {
 
     }
 
-    @Test
+    @Ignore
     public void makeSureWordsBecomeLowercase(){
         String upperCaseString = "KAFKA kafka Kafka";
         pushNewInputRecord(upperCaseString);

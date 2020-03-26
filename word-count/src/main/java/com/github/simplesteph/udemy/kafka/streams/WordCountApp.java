@@ -1,10 +1,20 @@
 package com.github.simplesteph.udemy.kafka.streams;
 
+import java.io.IOException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 import java.util.Arrays;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.util.JSONPObject;
+import jdk.nashorn.internal.parser.JSONParser;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.common.serialization.Deserializer;
+import org.apache.kafka.common.serialization.Serde;
 import org.apache.kafka.common.serialization.Serdes;
+import org.apache.kafka.common.serialization.Serializer;
 import org.apache.kafka.streams.KafkaStreams;
 import org.apache.kafka.streams.StreamsBuilder;
 import org.apache.kafka.streams.StreamsConfig;
@@ -16,30 +26,58 @@ import org.apache.kafka.streams.kstream.Produced;
 
 public class WordCountApp {
 
-    public Topology createTopology(){
+    public Topology createTopology() {
         StreamsBuilder builder = new StreamsBuilder();
         // 1 - stream from Kafka
 
-        KStream<String, String> textLines = builder.stream("word-count-input");
-        KTable<String, Long> wordCounts = textLines
-                // 2 - map values to lowercase
-                .mapValues(textLine -> textLine.toLowerCase())
-                // can be alternatively written as:
-                // .mapValues(String::toLowerCase)
-                // 3 - flatmap values split by space
-                .flatMapValues(textLine -> Arrays.asList(textLine.split("\\W+")))
-                // 4 - select key to apply a key (we discard the old key)
-                .selectKey((key, word) -> word)
-                // 5 - group by key before aggregation
-                .groupByKey()
-                // 6 - count occurences
-                .count(Materialized.as("Counts"));
+        KStream<String, String> people = builder.stream("people");
 
-        // 7 - to in order to write the results back to kafka
-        wordCounts.toStream().to("word-count-output", Produced.with(Serdes.String(), Serdes.Long()));
+        KStream<String, String> wordCounts = people
+                .selectKey((k, v) -> v)
+                .mapValues(v -> getPersonNameAndAge(v));
+//        KTable<String, Long> wordCounts = textLines
+//                // 2 - map values to lowercase
+//                .mapValues(textLine -> textLine.toLowerCase())
+//                // can be alternatively written as:
+//                // .mapValues(String::toLowerCase)
+//                // 3 - flatmap values split by space
+//                .flatMapValues(textLine -> Arrays.asList(textLine.split("\\W+")))
+//                // 4 - select key to apply a key (we discard the old key)
+//                .selectKey((key, word) -> word)
+//                // 5 - group by key before aggregation
+//                .groupByKey()
+//                // 6 - count occurences
+//                .count(Materialized.as("Counts"));
+//
+//        // 7 - to in order to write the results back to kafka
+        wordCounts.to("otherpeople");
+//        wordCounts.toStream().to("otherpeople", Produced.with(Serdes.String(), Serdes.Long()));
 
         return builder.build();
     }
+
+    public String getPersonNameAndAge(String person) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        Person personObj = null;
+        try {
+            personObj = objectMapper.readValue(person, Person.class);
+        } catch (IOException e) {
+            System.out.println("Error while serializing");
+        }
+
+        OtherPerson otherPerson = new OtherPerson();
+        otherPerson.setAge(personObj.getAge());
+        otherPerson.setName(personObj.getName());
+        String ret;
+        try {
+            ret = objectMapper.writeValueAsString(otherPerson);
+        } catch (JsonProcessingException e) {
+            System.out.println("Error while deserializing");
+            return "";
+        }
+        return ret;
+    }
+//    String p = "{ \"name\" : \"Avi\", \"age\" : \"33\", \"phone\" : \"8698698996\" }";
 
     public static void main(String[] args) {
         Properties config = new Properties();
@@ -59,7 +97,7 @@ public class WordCountApp {
 
         // Update:
         // print the topology every 10 seconds for learning purposes
-        while(true){
+        while (true) {
             streams.localThreadsMetadata().forEach(data -> System.out.println(data));
             try {
                 Thread.sleep(5000);
